@@ -1,18 +1,16 @@
 
 import java.util.concurrent.Executors
 
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.effect._
 import org.http4s._
 import org.http4s.implicits._
 import org.http4s.HttpRoutes
-import org.http4s.dsl.impl.Root
 import org.http4s.server.Router
-import org.http4s.server.blaze.BlazeServerBuilder
+import org.http4s.ember.server._
 import org.http4s.dsl.io._
 import org.http4s.headers.`Content-Type`
-import org.http4s.server.staticcontent.WebjarService
-
-import scala.concurrent.ExecutionContext
+import org.http4s.server.staticcontent.WebjarServiceBuilder
+import com.comcast.ip4s._
 
 object Server extends IOApp{
 
@@ -38,16 +36,17 @@ object Server extends IOApp{
 
 
   override def run(args: List[String]): IO[ExitCode] = {
-    val blockerContext = Blocker.liftExecutionContext(ExecutionContext.fromExecutor(Executors.newCachedThreadPool()))
-    BlazeServerBuilder[IO](ExecutionContext.global)
-      .bindHttp(8888, "localhost")
+    EmberServerBuilder
+      .default[IO]
+      .withHost(ipv4"0.0.0.0")
+      .withPort(port"8888")
       .withHttpApp(
         Router[IO](
           "/" -> indexRouter,
-          "/webjars" -> WebjarService[IO](WebjarService.Config[IO](blockerContext))
+          "/webjars" -> WebjarServiceBuilder[IO].toRoutes
         ).orNotFound
       )
-      .resource
+      .build
       .use(_ => IO.never)
       .as(ExitCode.Success)
   }
